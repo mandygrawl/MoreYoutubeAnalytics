@@ -1,0 +1,196 @@
+---
+title: "More YouTube Stats"
+subtitle: "Hackathon Submission"
+output: html_document
+date: "2025-04-05"
+---
+  
+[This page is generalized and can be used for any account, but for the purposes of this submission, I am hard-coding in an example set of real channel info.]
+
+```{r}
+#key = readline(prompt = "Enter your channel's API key (found via Google Cloud) ");
+#id = readline(prompt = "Enter your channel's URL (starts with 'UC', found in the 'channel customization' tab of YouTube Studio) ")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(httr)
+library(jsonlite)
+#install.packages("plotly")
+library(plotly)
+```
+```{r, include=FALSE}
+
+#all of this set of blocks until the break is just to import YouTube data
+
+key = "AIzaSyCPVaB7OLjNs3xkyBfwDlaDShYiovcwG0A"
+id = "UCM0oANlm_RK4ebMlqW-C7qw"
+url = "https://www.googleapis.com/youtube/v3/"
+#key = "AIzaSyBKMNpwjpClhaIVZEa-9x6xTAoffOefyAQ"
+#id = "UCZWk5WzYBLq24NyFJ68FpTQ"
+```
+```{r, include=FALSE}
+api_params = 
+  paste(paste0("key=", key), 
+        paste0("id=", id), 
+        "part=snippet,contentDetails,statistics",
+        sep = "&")
+api_call <- paste0(url, "channels", "?", api_params)
+api_result <- GET(api_call)
+json_result <- content(api_result, "text", encoding="UTF-8")
+
+channel.json <- fromJSON(json_result, flatten = T)
+channel.df <- as.data.frame(channel.json)
+```
+```{r, include=FALSE}
+api_params <- paste0("part=snippet,contentDetails,statistics&id=", id, "&key=", key)
+api_call <- paste0(url, "channels?", api_params)
+
+api_result <- GET(api_call)
+json_result <- content(api_result, "text", encoding = "UTF-8")
+channel.json <- fromJSON(json_result, flatten = TRUE)
+
+channel.df <- as.data.frame(channel.json$items)
+all_videos <- channel.df$contentDetails.relatedPlaylists.uploads
+```
+```{r, include=FALSE}
+all_videos <- channel.df$contentDetails.relatedPlaylists.uploads
+
+nextPageToken <- ""
+upload.df <- NULL
+pageInfo <- NULL
+
+while (!is.null(nextPageToken)) {
+  
+  api_params <- 
+    paste(paste0("key=", key), 
+          paste0("playlistId=", all_videos), 
+          "part=snippet,contentDetails,status",
+          "maxResults=50",
+          sep = "&")
+  
+  if (nextPageToken != "") {
+    api_params <- paste0(api_params,
+                         "&pageToken=",nextPageToken)
+  }
+  
+  api_call <- paste0(url, "playlistItems", "?", api_params)
+  api_result <- GET(api_call)
+  json_result <- content(api_result, "text", encoding="UTF-8")
+  upload.json <- fromJSON(json_result, flatten = T)
+  
+  nextPageToken <- upload.json$nextPageToken
+  pageInfo <- upload.json$pageInfo
+  
+  curr.df <- as.data.frame(upload.json$items)
+  if (is.null(upload.df)) {
+    upload.df <- curr.df
+  } else {
+    upload.df <- bind_rows(upload.df, curr.df)
+  }
+}
+```
+```{r,include=FALSE}
+video.df<- NULL
+
+for (i in 1:nrow(upload.df)) {
+  
+  video_id <- upload.df$contentDetails.videoId[i]
+  api_params <- 
+    paste(paste0("key=", key), 
+          paste0("id=", video_id), 
+          "part=id,statistics,contentDetails",
+          sep = "&")
+  
+  api_call <- paste0(url, "videos", "?", api_params)
+  api_result <- GET(api_call)
+  json_result <- content(api_result, "text", encoding="UTF-8")
+  video.json <- fromJSON(json_result, flatten = T)
+  
+  curr.df <- as.data.frame(video.json$items)
+  
+  if (is.null(video.df)) {
+    video.df <- curr.df
+  } else {
+    video.df <- bind_rows(video.df, curr.df)
+  }
+} 
+
+video.df$contentDetails.videoId <- video.df$id
+video_final.df <- merge(x = upload.df, 
+                        y = video.df,
+                        by = "contentDetails.videoId")
+```
+
+```{r, include=FALSE}
+
+#finally doing something with that YouTube data
+
+useful = video_final.df %>% select("snippet.title","statistics.viewCount","snippet.publishedAt", "statistics.commentCount") %>% mutate(statistics.viewCount = as.numeric(statistics.viewCount)) %>% mutate(snippet.publishedAt = as.numeric(substr(snippet.publishedAt, 12, 13))) %>% mutate(statistics.commentCount = as.numeric(statistics.commentCount))
+
+useful2 = data.frame(
+  Title = useful$snippet.title,
+  Views = useful$statistics.viewCount,
+  Hour_Published = useful$snippet.publishedAt,
+  Comments = useful$statistics.commentCount
+)
+
+#top = useful2 %>% arrange(desc(Views)) %>% head(5)
+
+#useful2 %>% group_by(snippet.publishedAt) %>% summarize(n())r
+```
+
+Average views per video (Your benchmarks!):
+
+```{r, include=FALSE}
+median = round(median(useful2$Views))
+mean = round(mean(useful2$Views))
+useful2$Views
+```
+```{r, echo=FALSE}
+paste("Median views: ", median)
+paste("Mean views: ", mean)
+```
+
+ 
+How well each of your videos did, by which hour* of the day they were published (zoom + hover for precise info):
+ 
+```{r, include = FALSE}
+p = ggplot(useful2, aes(x = Hour_Published, y = Views, z = Title)) + geom_point(color="black", fill="red", shape=21, cex = 2) + labs(x = "Hour Published (UTC)", y = "Views on Each Video", title = "Views by Hour Published")
+```
+```{r, echo=FALSE}
+ggplotly(p)
+```
+*The default upload time is 00:00 in your local time. 00:00 EST is 04:00 UTC.
+ 
+The median performance of a video posted at any given hour of the day (zoom + hover for precise info):
+ 
+```{r, include=FALSE}
+p = ggplot(useful2, aes(x = Hour_Published, y = Views)) + geom_bar(fill = "red", col = "black", stat = "summary", fun = "median") + labs(x = "Hour Published (UTC)", y = "Average Views Per Video", title = "Average Performance by Hour Published")
+```
+```{r, echo=FALSE}
+ggplotly(p)
+```
+
+How often you post videos at each hour (hover for precise info):
+ 
+```{r, include=FALSE}
+p = ggplot(useful2, aes(x = Hour_Published)) + geom_bar(fill = "red", col = "black") + labs(x = "Hour Published (UTC)", y = "Number of Videos Published", title = "Amount of Videos by Hour Published")
+```
+```{r, echo=FALSE}
+ggplotly(p)
+```
+ 
+Views and comments both boost engagement. How often do your videos do well in one or both categories? (Zoom + hover for precise info):
+ 
+```{r, include = FALSE}
+p = ggplot(useful2, aes(x = Comments, y = Views, z = Title)) + geom_point(color="black", fill="red", shape=21, cex = 2) + labs(x = "Number of Comments", y = "Views", title = "Number of Comments vs Views")
+```
+```{r, echo=FALSE}
+ggplotly(p)
+```
+
