@@ -6,8 +6,8 @@ date: "2025-04-05"
 ---
 
 ```{r}
-#key = readline(prompt = "Enter your channel's API key (found via Google Cloud) ");
-#id = readline(prompt = "Enter your channel's URL (starts with 'UC', found in the 'channel customization' tab of YouTube Studio) ")
+key = readline(prompt = "Enter your channel's API key (found via Google Cloud) ");
+id = readline(prompt = "Enter your channel's URL (starts with 'UC', found in the 'channel customization' tab of YouTube Studio) ")
 ```
 
 ```{r setup, include=FALSE}
@@ -22,12 +22,7 @@ library(jsonlite)
 library(plotly)
 ```
 ```{r, include=FALSE}
-
-#all of this set of blocks until the break is just to import YouTube data
-
 url = "https://www.googleapis.com/youtube/v3/"
-#key = "key"
-#id = "id"
 ```
 ```{r, include=FALSE}
 api_params = 
