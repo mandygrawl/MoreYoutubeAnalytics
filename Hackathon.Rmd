@@ -4,8 +4,6 @@ subtitle: "Hackathon Submission"
 output: html_document
 date: "2025-04-05"
 ---
-  
-[This page is generalized and can be used for any account, but for the purposes of this submission, I am hard-coding in an example set of real channel info.]
 
 ```{r}
 #key = readline(prompt = "Enter your channel's API key (found via Google Cloud) ");
@@ -27,11 +25,9 @@ library(plotly)
 
 #all of this set of blocks until the break is just to import YouTube data
 
-key = "AIzaSyCPVaB7OLjNs3xkyBfwDlaDShYiovcwG0A"
-id = "UCM0oANlm_RK4ebMlqW-C7qw"
 url = "https://www.googleapis.com/youtube/v3/"
-#key = "AIzaSyBKMNpwjpClhaIVZEa-9x6xTAoffOefyAQ"
-#id = "UCZWk5WzYBLq24NyFJ68FpTQ"
+#key = "key"
+#id = "id"
 ```
 ```{r, include=FALSE}
 api_params = 
